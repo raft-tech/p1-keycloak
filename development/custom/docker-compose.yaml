@@ -1,0 +1,52 @@
+services:
+  postgresql:
+    platform: linux/amd64
+    image: 'bitnami/postgresql:17.4.0'
+    container_name: keycloak-db
+    ports:
+      - '5432:5432'
+    environment:
+      # create database on startup, if it does not already exist
+      - POSTGRESQL_USERNAME=keycloak
+      - POSTGRESQL_PASSWORD=keycloak
+      - POSTGRESQL_DATABASE=keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.4
+    container_name: keycloak
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgresql
+    command:
+      - "start-dev"
+      - "--import-realm"
+
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: "/auth"
+      KC_DB: "postgres"
+      KC_DB_USERNAME: "keycloak"
+      KC_DB_PASSWORD: "keycloak"
+      KC_DB_URL_HOST: "postgresql"
+      KC_DB_URL_PORT: "5432"
+      KC_DB_URL_DATABASE: "keycloak"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME: localhost
+      KC_LOG_LEVEL: "dod.p1.keycloak:DEBUG,org.keycloak.crypto:DEBUG,org.keycloak.authentication:DEBUG,org.keycloak.events:INFO,org.infinispan:INFO,org.jgroups:INFO,org.keycloak.truststore:INFO,org.keycloak.services:INFO"
+
+      KC_METRICS_ENABLED: "true"
+
+      CUSTOM_REGISTRATION_CONFIG: /opt/keycloak/conf/customreg.yaml
+
+    volumes:
+      - ./customreg.yaml:/opt/keycloak/conf/customreg.yaml
+      - ./baby-yoda.json:/opt/keycloak/data/import/realm.json
+      - ./quarkus.properties:/opt/keycloak/conf/quarkus.properties
+      - ./p1-keycloak-plugin-3.6.8.jar:/opt/keycloak/providers/p1-keycloak-plugin-3.6.8.jar
